@@ -56,3 +56,26 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - ./data/redis:/data
+
+  # # 数据库定期导出（每 3 小时一次，清理 24 小时前备份）
+  # # 建议搭配 backrest / duplicati 等增量备份工具，将 ./backup 定期同步到异地
+  # backup:
+  #   image: alpine:3
+  #   container_name: faka-backup
+  #   restart: always
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #   environment:
+  #     MYSQL_HOST: mysql
+  #     MYSQL_USER: root
+  #     MYSQL_PASSWORD: acg-faka
+  #     MYSQL_DATABASE: acg-faka
+  #     BACKUP_DIR: /backup
+  #     KEEP_MINUTES: "1440"
+  #   volumes:
+  #     - ./backup:/backup
+  #   command: >
+  #     sh -c "apk add --no-cache mariadb-client &&
+  #     echo '0 */3 * * * mysqldump -h $${MYSQL_HOST} -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --single-transaction --default-character-set=utf8mb4 $${MYSQL_DATABASE} | gzip > $${BACKUP_DIR}/acg-faka-$$(date +\%Y\%m\%d\%H\%M\%S).sql.gz; find $${BACKUP_DIR} -name '*.sql.gz' -mmin +$${KEEP_MINUTES} -delete' | crontab - &&
+  #     crond -f -l 2"
