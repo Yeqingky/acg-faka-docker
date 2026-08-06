@@ -1,0 +1,58 @@
+services:
+  php:
+    image: yeqingky/acg-faka-docker:latest
+    container_name: faka-php
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./data/www:/var/www/html
+      - ./php/php.ini:/usr/local/etc/php/conf.d/acg-faka.ini:ro
+      - ./php/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - ./php/entrypoint.sh:/usr/local/bin/acg-faka-entrypoint:ro
+      - ./data/php:/var/run/php-fpm
+      # docker run --rm php:8.2-fpm id www-data
+      # mkdir -p data/www data/php
+      # chown -R 33:33 data/www && chown 33:33 data/php && chmod 750 data/php
+    entrypoint: ["acg-faka-entrypoint"]
+    command: ["php-fpm"]
+
+  mysql:
+    image: mysql:8.0
+    container_name: faka-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: acg-faka
+      MYSQL_DATABASE: acg-faka
+      MYSQL_USER: acg-faka
+      MYSQL_PASSWORD: acg-faka
+      TZ: Asia/Shanghai
+    # 不映射任何宿主机端口，mysql/redis 仅在容器内部网络互访
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      # docker run --rm mysql:8.0 id mysql
+      # mkdir -p data/mysql
+      # chown 999:999 data/mysql && chmod 750 data/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: faka-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - ./data/redis:/data
